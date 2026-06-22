@@ -3,7 +3,7 @@
  */
 
 import { STORAGE_KEYS } from './constants.js';
-import { safeStorageGet, safeStorageSet } from './utils/errors.js';
+import { safeStorageGet, safeStorageSet } from './utils/errors.js?v=102';
 
 const STORAGE_KEY = STORAGE_KEYS.DESIGNS;
 const MULTI_LABEL_PRESETS_KEY = STORAGE_KEYS.MULTI_LABEL_PRESETS;

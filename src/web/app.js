@@ -7,7 +7,7 @@
 import { CanvasRenderer } from './canvas.js?v=116';
 import { BLETransport } from './ble.js?v=106';
 import { USBTransport } from './usb.js?v=101';
-import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern, loadPrinterDefinitions, getAllPrinterDefinitions, getPrinterDefinition, getCustomPrinterDefinitions, saveCustomPrinterDefinition, deleteCustomPrinterDefinition, isBuiltinPrinter, resetBuiltinPrinter, getAvailableProtocols, getAvailableLabelPresets, getDetectedDefinition } from './printer.js?v=130';
+import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern, loadPrinterDefinitions, getAllPrinterDefinitions, getPrinterDefinition, getCustomPrinterDefinitions, saveCustomPrinterDefinition, deleteCustomPrinterDefinition, isBuiltinPrinter, resetBuiltinPrinter, getAvailableProtocols, getAvailableLabelPresets, getDetectedDefinition } from './printer.js?v=131';
 import {
   createTextElement,
   createImageElement,
@@ -54,13 +54,11 @@ import {
   loadDesign,
   listDesigns,
   deleteDesign,
-} from './storage.js?v=101';
+} from './storage.js?v=102';
 import {
-  configureSync,
-  getConfiguredServerUrl,
   onSyncStatusChange,
   pullAll,
-} from './sync.js?v=1';
+} from './sync.js?v=3';
 import {
   extractFields,
   hasTemplateFields,
@@ -115,7 +113,7 @@ import {
   ErrorLevel,
   ErrorCodes,
   getErrorMessage,
-} from './utils/errors.js?v=101';
+} from './utils/errors.js?v=102';
 import {
   validateFontSize,
   validateImageScale,
@@ -6829,28 +6827,20 @@ function populatePrinterModelDropdown() {
 }
 
 /**
- * Initialize the optional sync server URL field and status indicator
- * in the Print Settings dialog.
+ * Initialize the sync status indicator in the Print Settings dialog.
+ * Sync always targets the page's own origin (see sync.js); there is
+ * nothing for the user to configure.
  */
 function initSyncSettingsUI() {
-  const urlInput = $('#sync-server-url');
   const statusEl = $('#sync-status');
-  if (!urlInput || !statusEl) return;
-
-  urlInput.value = getConfiguredServerUrl();
+  if (!statusEl) return;
 
   const statusText = {
-    'not-configured': 'Not configured',
     synced: 'Synced',
     offline: 'Offline',
   };
   onSyncStatusChange((status) => {
     statusEl.textContent = statusText[status] || status;
-  });
-
-  urlInput.addEventListener('change', () => {
-    configureSync(urlInput.value.trim());
-    pullAll();
   });
 }
 
@@ -7096,7 +7086,7 @@ async function init() {
 
   // Pull any newer data from the sync server before hydrating from
   // localStorage, so a freshly-opened browser sees designs/presets/printers
-  // saved elsewhere. No-ops immediately if no server is configured.
+  // saved elsewhere. Fails silently when not served by storage_server.py.
   await pullAll();
 
   initSyncSettingsUI();

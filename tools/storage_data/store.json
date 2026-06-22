@@ -1,0 +1,10 @@
+{
+  "phomymo_multi_label_presets": {
+    "value": "{\"test\":{\"labelWidth\":10,\"labelHeight\":20,\"labelsAcross\":4,\"gapMm\":2}}",
+    "updatedAt": 1782148564895
+  },
+  "phomymo_designs": {
+    "value": "{\"Test1\":{\"elements\":[],\"labelSize\":{\"width\":48,\"height\":20},\"savedAt\":1782147716853},\"asd\":{\"elements\":[],\"labelSize\":{\"width\":40,\"height\":30},\"savedAt\":1782148078385},\"aaa\":{\"elements\":[],\"labelSize\":{\"width\":40,\"height\":30},\"savedAt\":1782149164867}}",
+    "updatedAt": 1782149164872
+  }
+}

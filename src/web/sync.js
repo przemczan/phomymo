@@ -2,31 +2,22 @@
  * Optional sync of localStorage data to a shared Phomymo storage server.
  *
  * Offline-first: every read/write still goes through localStorage first via
- * utils/errors.js. This module only mirrors those writes to a server in the
- * background (and pulls server state once on startup) when a server URL has
- * been configured. With no URL configured, every function here is a no-op.
+ * utils/errors.js. This module only mirrors those writes in the background
+ * (and pulls server state once on startup) to the page's own origin. If the
+ * page isn't served by storage_server.py (e.g. a plain static file server),
+ * the /api/storage requests simply fail and sync stays offline.
  */
 
-const SERVER_URL_KEY = 'phomymo_sync_server_url';
 const SYNC_META_KEY = 'phomymo_sync_meta';
 
-// Bootstrap keys for the sync mechanism itself must never be synced.
-const NEVER_SYNC_KEYS = new Set([SERVER_URL_KEY, SYNC_META_KEY]);
+// Bootstrap key for the sync mechanism itself must never be synced.
+const NEVER_SYNC_KEYS = new Set([SYNC_META_KEY]);
 
-let status = 'not-configured'; // 'not-configured' | 'synced' | 'offline'
+let status = 'offline'; // 'synced' | 'offline'
 let statusListener = null;
 
 function getServerUrl() {
-  const url = localStorage.getItem(SERVER_URL_KEY);
-  return url ? url.replace(/\/+$/, '') : '';
-}
-
-function setServerUrl(url) {
-  if (url) {
-    localStorage.setItem(SERVER_URL_KEY, url);
-  } else {
-    localStorage.removeItem(SERVER_URL_KEY);
-  }
+  return window.location.origin;
 }
 
 function getSyncMeta() {
@@ -49,7 +40,7 @@ function setStatus(next) {
 }
 
 /**
- * Subscribe to sync status changes ('not-configured' | 'synced' | 'offline').
+ * Subscribe to sync status changes ('synced' | 'offline').
  */
 export function onSyncStatusChange(listener) {
   statusListener = listener;
@@ -60,27 +51,16 @@ export function getSyncStatus() {
   return status;
 }
 
-export function configureSync(url) {
-  setServerUrl(url);
-  setStatus(url ? 'offline' : 'not-configured');
-}
-
-export function getConfiguredServerUrl() {
-  return getServerUrl();
-}
-
 /**
  * Push a single key's value to the server. Fire-and-forget: network errors
  * are swallowed since the local write already succeeded.
  */
 export async function pushKey(key, value) {
   if (NEVER_SYNC_KEYS.has(key)) return;
-  const serverUrl = getServerUrl();
-  if (!serverUrl) return;
 
   const updatedAt = Date.now();
   try {
-    const response = await fetch(`${serverUrl}/api/storage/${encodeURIComponent(key)}`, {
+    const response = await fetch(`${getServerUrl()}/api/storage/${encodeURIComponent(key)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value, updatedAt }),
@@ -101,12 +81,10 @@ export async function pushKey(key, value) {
  */
 export async function pushDelete(key) {
   if (NEVER_SYNC_KEYS.has(key)) return;
-  const serverUrl = getServerUrl();
-  if (!serverUrl) return;
 
   const updatedAt = Date.now();
   try {
-    const response = await fetch(`${serverUrl}/api/storage/${encodeURIComponent(key)}`, {
+    const response = await fetch(`${getServerUrl()}/api/storage/${encodeURIComponent(key)}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ updatedAt }),
@@ -128,14 +106,8 @@ export async function pushDelete(key) {
  * directly (bypassing pushKey, so we don't immediately push it right back).
  */
 export async function pullAll() {
-  const serverUrl = getServerUrl();
-  if (!serverUrl) {
-    setStatus('not-configured');
-    return;
-  }
-
   try {
-    const response = await fetch(`${serverUrl}/api/storage`);
+    const response = await fetch(`${getServerUrl()}/api/storage`);
     if (!response.ok) {
       setStatus('offline');
       return;

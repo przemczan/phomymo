@@ -1303,13 +1303,9 @@
         </div>
 
         <!-- Server Sync -->
-        <div>
-          <div class="prop-label">Sync Server (optional)</div>
-          <input type="text" id="sync-server-url" placeholder="http://localhost:8080" class="prop-input">
-          <div class="flex items-center justify-between mt-1">
-            <div class="text-xs text-gray-400">If this page is served by storage_server.py, just use this page's own address</div>
-            <span id="sync-status" class="text-xs text-gray-400">Not configured</span>
-          </div>
+        <div class="flex items-center justify-between">
+          <div class="prop-label mb-0">Server Sync</div>
+          <span id="sync-status" class="text-xs text-gray-400">Offline</span>
         </div>
       </div>
 
@@ -2153,7 +2149,7 @@
     pdfjsModule.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
     window.pdfjsLib = pdfjsModule;
   </script>
-  <script type="module" src="app.js?v=154"></script>
+  <script type="module" src="app.js?v=156"></script>
   <script>
     // Show body once styles are ready
     requestAnimationFrame(() => {
