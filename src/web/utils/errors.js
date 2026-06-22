@@ -259,6 +259,7 @@ export function safeStorageGet(key, fallback = null) {
 export function safeStorageSet(key, value) {
   try {
     localStorage.setItem(key, value);
+    import('../sync.js').then(({ pushKey }) => pushKey(key, value));
     return true;
   } catch (error) {
     logError(error, `localStorage set: ${key}`, ErrorLevel.WARNING);
@@ -278,6 +279,7 @@ export function safeStorageSet(key, value) {
 export function safeStorageRemove(key) {
   try {
     localStorage.removeItem(key);
+    import('../sync.js').then(({ pushDelete }) => pushDelete(key));
     return true;
   } catch (error) {
     logError(error, `localStorage remove: ${key}`, ErrorLevel.WARNING);

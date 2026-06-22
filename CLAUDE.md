@@ -28,6 +28,12 @@ npx playwright test tests/02-adding-elements.spec.ts
 
 **No build step, no linting tools.** Files are served directly as static assets.
 
+**Optional server-side sync** (shares designs/presets/printers/preferences across browsers): run [tools/storage_server.py](tools/storage_server.py) instead of the plain static server. It serves the app *and* the sync API on one port:
+```bash
+python tools/storage_server.py --port 8080
+```
+Then set the sync server URL in the app's Print Settings dialog to that same address (e.g. `http://localhost:8080`) — no separate port, no CORS, since it's all one origin. Data is persisted to a single JSON file (`tools/storage_data/store.json` by default; see `--data-file`). If you don't need cross-browser sync, the plain `python -m http.server` command above is simpler and sufficient.
+
 ## Cache-Busting Convention
 
 There is no bundler. When modifying a JS module, increment its `?v=NNN` query parameter in the `<script>` tag inside [src/web/index.html](src/web/index.html). This is the only cache invalidation mechanism.
@@ -48,6 +54,7 @@ The app is orchestrated by [src/web/app.js](src/web/app.js), which owns a single
 | [ble.js](src/web/ble.js) | Web Bluetooth transport — device pairing, GATT, BLE commands |
 | [usb.js](src/web/usb.js) | WebUSB transport (PM-241 only) |
 | [storage.js](src/web/storage.js) | `localStorage` persistence for designs, presets, and custom printers |
+| [sync.js](src/web/sync.js) | Optional background sync of localStorage data to a shared storage server |
 | [templates.js](src/web/templates.js) | Variable substitution (`{{Field}}`), instant expressions (`[[date]]`), CSV batch |
 | [constants.js](src/web/constants.js) | Shared magic numbers, label sizes, UI limits |
 | [printers.json](src/web/printers.json) | Data-driven printer database (protocol, DPI, width, BLE name patterns) |
@@ -56,7 +63,7 @@ The app is orchestrated by [src/web/app.js](src/web/app.js), which owns a single
 
 **Print flow:** `canvas.renderLabel()` produces a bitmap → `printer.js` converts it to protocol-specific commands (ESC/POS, TSPL, etc.) → `ble.js` or `usb.js` sends bytes to the printer.
 
-**Persistence:** All data (designs, custom printers, presets, preferences) is stored in browser `localStorage`. There is no backend.
+**Persistence:** All data (designs, custom printers, presets, preferences) is stored in browser `localStorage`. An optional backend ([tools/storage_server.py](tools/storage_server.py)) can mirror this data to a shared JSON file so multiple browsers see the same data — see "Optional server-side sync" above. The app works fully offline either way; sync is opt-in and only active when a sync server URL is configured.
 
 ## Adding Printer Support
 
@@ -67,6 +74,14 @@ Printer definitions live in [src/web/printers.json](src/web/printers.json). Each
 Tests are Playwright E2E suites in [tests/](tests/). They rely on a Python HTTP server on port 8081 (auto-started by `playwright.config.ts`). Fixtures and helpers are in [tests/helpers/](tests/helpers/) and [tests/fixtures/](tests/fixtures/).
 
 ## Tools
+
+### Shared storage server
+
+[tools/storage_server.py](tools/storage_server.py) is a stdlib-only Python server providing optional server-side sync (see "Optional server-side sync" above). It exposes `GET/PUT/DELETE /api/storage[/<key>]` (last-write-wins by timestamp) and, by default, also serves the static app from `src/web` on the same port.
+
+```bash
+python tools/storage_server.py [--port 8090] [--data-file path/to/store.json] [--static-dir path/to/src/web]
+```
 
 ### BLE / HCI snoop log analyzer
 

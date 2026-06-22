@@ -3,6 +3,7 @@
  */
 
 import { STORAGE_KEYS } from './constants.js';
+import { safeStorageGet, safeStorageSet } from './utils/errors.js';
 
 const STORAGE_KEY = STORAGE_KEYS.DESIGNS;
 const MULTI_LABEL_PRESETS_KEY = STORAGE_KEYS.MULTI_LABEL_PRESETS;
@@ -12,7 +13,7 @@ const MULTI_LABEL_PRESETS_KEY = STORAGE_KEYS.MULTI_LABEL_PRESETS;
  */
 function getAllDesigns() {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = safeStorageGet(STORAGE_KEY);
     return data ? JSON.parse(data) : {};
   } catch (e) {
     console.error('Failed to load designs:', e);
@@ -25,7 +26,7 @@ function getAllDesigns() {
  */
 function setAllDesigns(designs) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(designs));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(designs));
     return true;
   } catch (e) {
     console.error('Failed to save designs:', e);
@@ -245,7 +246,7 @@ export function getStorageInfo() {
  */
 export function getMultiLabelPresets() {
   try {
-    const data = localStorage.getItem(MULTI_LABEL_PRESETS_KEY);
+    const data = safeStorageGet(MULTI_LABEL_PRESETS_KEY);
     return data ? JSON.parse(data) : {};
   } catch (e) {
     console.error('Failed to load multi-label presets:', e);
@@ -272,7 +273,7 @@ export function saveMultiLabelPreset(name, config) {
   };
 
   try {
-    localStorage.setItem(MULTI_LABEL_PRESETS_KEY, JSON.stringify(presets));
+    safeStorageSet(MULTI_LABEL_PRESETS_KEY, JSON.stringify(presets));
     return true;
   } catch (e) {
     console.error('Failed to save multi-label preset:', e);
@@ -292,7 +293,7 @@ export function deleteMultiLabelPreset(name) {
 
   delete presets[name];
   try {
-    localStorage.setItem(MULTI_LABEL_PRESETS_KEY, JSON.stringify(presets));
+    safeStorageSet(MULTI_LABEL_PRESETS_KEY, JSON.stringify(presets));
     return true;
   } catch (e) {
     console.error('Failed to delete multi-label preset:', e);

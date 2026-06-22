@@ -7,6 +7,7 @@
  */
 
 import { STORAGE_KEYS } from './constants.js';
+import { safeStorageGet, safeStorageSet } from './utils/errors.js';
 
 // =============================================================================
 // PRINTER DEFINITIONS MANAGER
@@ -64,7 +65,7 @@ export function getPrinterDefinition(id) {
  */
 export function getCustomPrinterDefinitions() {
   try {
-    const data = localStorage.getItem(STORAGE_KEYS.CUSTOM_PRINTERS);
+    const data = safeStorageGet(STORAGE_KEYS.CUSTOM_PRINTERS);
     return data ? JSON.parse(data) : [];
   } catch (e) {
     console.error('Failed to load custom printers:', e);
@@ -85,7 +86,7 @@ export function saveCustomPrinterDefinition(def) {
   } else {
     customs.push(saved);
   }
-  localStorage.setItem(STORAGE_KEYS.CUSTOM_PRINTERS, JSON.stringify(customs));
+  safeStorageSet(STORAGE_KEYS.CUSTOM_PRINTERS, JSON.stringify(customs));
   _rebuildDefinitions();
 }
 
@@ -95,7 +96,7 @@ export function saveCustomPrinterDefinition(def) {
  */
 export function deleteCustomPrinterDefinition(id) {
   const customs = getCustomPrinterDefinitions().filter(d => d.id !== id);
-  localStorage.setItem(STORAGE_KEYS.CUSTOM_PRINTERS, JSON.stringify(customs));
+  safeStorageSet(STORAGE_KEYS.CUSTOM_PRINTERS, JSON.stringify(customs));
   _rebuildDefinitions();
 }
 

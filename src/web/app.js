@@ -1,13 +1,13 @@
 /**
  * Phomymo Label Designer Application
  * Multi-element label editor with drag, resize, and rotate
- * v116
+ * v117
  */
 
 import { CanvasRenderer } from './canvas.js?v=116';
 import { BLETransport } from './ble.js?v=106';
 import { USBTransport } from './usb.js?v=101';
-import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern, loadPrinterDefinitions, getAllPrinterDefinitions, getPrinterDefinition, getCustomPrinterDefinitions, saveCustomPrinterDefinition, deleteCustomPrinterDefinition, isBuiltinPrinter, resetBuiltinPrinter, getAvailableProtocols, getAvailableLabelPresets, getDetectedDefinition } from './printer.js?v=129';
+import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern, loadPrinterDefinitions, getAllPrinterDefinitions, getPrinterDefinition, getCustomPrinterDefinitions, saveCustomPrinterDefinition, deleteCustomPrinterDefinition, isBuiltinPrinter, resetBuiltinPrinter, getAvailableProtocols, getAvailableLabelPresets, getDetectedDefinition } from './printer.js?v=130';
 import {
   createTextElement,
   createImageElement,
@@ -54,7 +54,13 @@ import {
   loadDesign,
   listDesigns,
   deleteDesign,
-} from './storage.js?v=100';
+} from './storage.js?v=101';
+import {
+  configureSync,
+  getConfiguredServerUrl,
+  onSyncStatusChange,
+  pullAll,
+} from './sync.js?v=1';
 import {
   extractFields,
   hasTemplateFields,
@@ -109,7 +115,7 @@ import {
   ErrorLevel,
   ErrorCodes,
   getErrorMessage,
-} from './utils/errors.js?v=100';
+} from './utils/errors.js?v=101';
 import {
   validateFontSize,
   validateImageScale,
@@ -302,7 +308,7 @@ async function loadLocalFonts() {
     state.localFontsEnabled = true;
 
     // Persist preference
-    localStorage.setItem(STORAGE_KEYS.LOCAL_FONTS_ENABLED, 'true');
+    safeStorageSet(STORAGE_KEYS.LOCAL_FONTS_ENABLED, 'true');
 
     // Update all font dropdowns
     updateFontDropdowns();
@@ -366,7 +372,7 @@ async function initLocalFonts() {
   }
 
   // Check if user previously enabled local fonts
-  const wasEnabled = localStorage.getItem(STORAGE_KEYS.LOCAL_FONTS_ENABLED) === 'true';
+  const wasEnabled = safeStorageGet(STORAGE_KEYS.LOCAL_FONTS_ENABLED) === 'true';
 
   if (wasEnabled) {
     // Auto-load fonts (permission should be remembered)
@@ -1061,7 +1067,7 @@ function saveTapeWidthForDevice() {
   if (!deviceName) return;
 
   try {
-    const stored = localStorage.getItem(STORAGE_KEYS.DEVICE_MAPPING) || '{}';
+    const stored = safeStorageGet(STORAGE_KEYS.DEVICE_MAPPING) || '{}';
     const mapping = JSON.parse(stored);
 
     if (!mapping[deviceName]) {
@@ -1069,7 +1075,7 @@ function saveTapeWidthForDevice() {
     }
     mapping[deviceName].tapeWidth = state.tapeWidth;
 
-    localStorage.setItem(STORAGE_KEYS.DEVICE_MAPPING, JSON.stringify(mapping));
+    safeStorageSet(STORAGE_KEYS.DEVICE_MAPPING, JSON.stringify(mapping));
   } catch (e) {
     console.warn('Failed to save tape width preference:', e);
   }
@@ -1082,7 +1088,7 @@ function saveTapeWidthForDevice() {
  */
 function loadTapeWidthForDevice(deviceName) {
   try {
-    const stored = localStorage.getItem(STORAGE_KEYS.DEVICE_MAPPING) || '{}';
+    const stored = safeStorageGet(STORAGE_KEYS.DEVICE_MAPPING) || '{}';
     const mapping = JSON.parse(stored);
     return mapping[deviceName]?.tapeWidth || 12;
   } catch (e) {
@@ -6823,6 +6829,32 @@ function populatePrinterModelDropdown() {
 }
 
 /**
+ * Initialize the optional sync server URL field and status indicator
+ * in the Print Settings dialog.
+ */
+function initSyncSettingsUI() {
+  const urlInput = $('#sync-server-url');
+  const statusEl = $('#sync-status');
+  if (!urlInput || !statusEl) return;
+
+  urlInput.value = getConfiguredServerUrl();
+
+  const statusText = {
+    'not-configured': 'Not configured',
+    synced: 'Synced',
+    offline: 'Offline',
+  };
+  onSyncStatusChange((status) => {
+    statusEl.textContent = statusText[status] || status;
+  });
+
+  urlInput.addEventListener('change', () => {
+    configureSync(urlInput.value.trim());
+    pullAll();
+  });
+}
+
+/**
  * Initialize the Printer Definitions Manager dialog
  */
 function initPrinterDefsManager() {
@@ -7052,7 +7084,7 @@ function initPrinterDefsManager() {
 /**
  * Initialize the application
  */
-function init() {
+async function init() {
   if (!checkCompatibility()) {
     return;
   }
@@ -7061,6 +7093,13 @@ function init() {
   configureErrorHandlers({
     setStatus: setStatus,
   });
+
+  // Pull any newer data from the sync server before hydrating from
+  // localStorage, so a freshly-opened browser sees designs/presets/printers
+  // saved elsewhere. No-ops immediately if no server is configured.
+  await pullAll();
+
+  initSyncSettingsUI();
 
   // Initialize local fonts (show button or auto-load if previously enabled)
   initLocalFonts();
