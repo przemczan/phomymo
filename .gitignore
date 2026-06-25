@@ -18,3 +18,4 @@ src/web/google*.html
 archive/
 
 bt-logs
+tools/storage_data/store.json
