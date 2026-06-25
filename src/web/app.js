@@ -1945,6 +1945,7 @@ async function handleBatchPrint() {
       // Render to raster (use raw format for rotated printers like D-series and P12)
       const deviceName = state.transport.getDeviceName?.() || '';
       const printerWidth = getPrinterWidthBytes(deviceName, printerModel);
+      const printerDpi = getPrinterDpi(deviceName, printerModel);
       const printerAlignment = getPrinterAlignment(deviceName, printerModel);
       // Force threshold mode for TSPL printers (shipping labels need crisp barcodes)
       let ditherMode = getDitherMode(mergedElements);
@@ -1953,7 +1954,7 @@ async function handleBatchPrint() {
       }
       const rasterData = isRotatedPrinter(deviceName, printerModel)
         ? state.renderer.getRasterDataRaw(mergedElements, ditherMode)
-        : state.renderer.getRasterData(mergedElements, printerWidth, 203, ditherMode, printerAlignment);
+        : state.renderer.getRasterData(mergedElements, printerWidth, printerDpi, ditherMode, printerAlignment);
 
       // Print
       await print(state.transport, rasterData, {
@@ -2032,6 +2033,7 @@ async function handlePrintSinglePreview() {
     // Render to raster (use raw format for rotated printers like D-series and P12)
     const deviceName = state.transport.getDeviceName?.() || '';
     const printerWidth = getPrinterWidthBytes(deviceName, printerModel);
+    const printerDpi = getPrinterDpi(deviceName, printerModel);
     const printerAlignment = getPrinterAlignment(deviceName, printerModel);
     // Force threshold mode for TSPL printers (shipping labels need crisp barcodes)
     let ditherMode = getDitherMode(mergedElements);
@@ -2040,7 +2042,7 @@ async function handlePrintSinglePreview() {
     }
     const rasterData = isRotatedPrinter(deviceName, printerModel)
       ? state.renderer.getRasterDataRaw(mergedElements, ditherMode)
-      : state.renderer.getRasterData(mergedElements, printerWidth, 203, ditherMode, printerAlignment);
+      : state.renderer.getRasterData(mergedElements, printerWidth, printerDpi, ditherMode, printerAlignment);
 
     // Print
     await print(state.transport, rasterData, {
@@ -4845,9 +4847,53 @@ function shouldShowInfoOnLoad() {
  * Show save dialog
  */
 function showSaveDialog() {
+  const designs = listDesigns();
+  const listEl = $('#save-design-list');
+  const initialName = state.currentDesignName || '';
+
+  if (designs.length === 0) {
+    listEl.innerHTML = '<div class="text-sm text-gray-400 text-center py-6">No saved designs</div>';
+  } else {
+    listEl.innerHTML = designs.map(d => {
+      const badges = [];
+      if (d.isTemplate) {
+        badges.push('<span class="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">Template</span>');
+      }
+      if (d.templateDataCount > 0) {
+        badges.push(`<span class="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">${d.templateDataCount} records</span>`);
+      }
+      const badgeHtml = badges.length > 0 ? `<div class="flex gap-1 mt-1">${badges.join('')}</div>` : '';
+      const selected = d.name === initialName ? ' bg-gray-100 border-gray-300' : ' border-transparent';
+
+      return `
+        <div class="save-design-item flex items-center p-2.5 hover:bg-gray-50 rounded-lg cursor-pointer border mb-1 last:mb-0${selected}" data-name="${d.name}">
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-sm text-gray-900 truncate">${d.name}</div>
+            <div class="text-xs text-gray-400">${d.labelSize.width}x${d.labelSize.height}mm · ${d.elementCount} elements</div>
+            ${badgeHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.save-design-item').forEach(item => {
+      item.addEventListener('click', () => {
+        $('#save-name').value = item.dataset.name;
+        listEl.querySelectorAll('.save-design-item').forEach(el => {
+          el.classList.remove('bg-gray-100', 'border-gray-300');
+          el.classList.add('border-transparent');
+        });
+        item.classList.add('bg-gray-100', 'border-gray-300');
+        item.classList.remove('border-transparent');
+        $('#save-name').focus();
+      });
+    });
+  }
+
   $('#save-dialog').classList.remove('hidden');
-  $('#save-name').value = '';
+  $('#save-name').value = initialName;
   $('#save-name').focus();
+  $('#save-name').select();
 }
 
 /**
@@ -4867,6 +4913,12 @@ function handleSave() {
     return;
   }
   const name = nameValidation.sanitized;
+
+  if (loadDesign(name) && name !== state.currentDesignName) {
+    if (!confirm(`Overwrite saved design "${name}"?`)) {
+      return;
+    }
+  }
 
   try {
     const designData = {

@@ -1153,9 +1153,13 @@
 
   <!-- Save Dialog -->
   <div id="save-dialog" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl p-6 w-80 shadow-xl">
+    <div class="bg-white rounded-xl p-6 w-96 shadow-xl max-h-[80vh] flex flex-col">
       <h3 class="text-lg font-semibold text-gray-900 mb-4">Save Design</h3>
-      <input type="text" id="save-name" class="prop-input mb-4" placeholder="Design name">
+      <input type="text" id="save-name" class="prop-input mb-2" placeholder="Design name">
+      <p class="text-xs text-gray-500 mb-2">Or choose existing to overwrite:</p>
+      <div id="save-design-list" class="flex-1 overflow-y-auto mb-4 min-h-[80px] max-h-[240px] border border-gray-100 rounded-lg">
+        <div class="text-sm text-gray-400 text-center py-6">No saved designs</div>
+      </div>
       <div class="flex gap-2">
         <button id="save-cancel" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
         <button id="save-confirm" class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800">Save</button>
@@ -2149,7 +2153,7 @@
     pdfjsModule.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
     window.pdfjsLib = pdfjsModule;
   </script>
-  <script type="module" src="app.js?v=156"></script>
+  <script type="module" src="app.js?v=157"></script>
   <script>
     // Show body once styles are ready
     requestAnimationFrame(() => {
