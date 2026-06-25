@@ -5165,6 +5165,72 @@ function handleExportPNG() {
 }
 
 /**
+ * Apply a design object to app state (shared by load and import)
+ */
+function applyDesignToState(design) {
+  state.elements = design.elements || [];
+  state.labelSize = design.labelSize || { width: 40, height: 30 };
+  state.selectedIds = [];
+
+  state.templateData = design.templateData || [];
+  state.selectedRecords = state.templateData.map((_, i) => i);
+
+  if (design.multiLabel && design.multiLabel.enabled) {
+    state.multiLabel = { ...design.multiLabel };
+    state.activeZone = 0;
+
+    const select = $('#label-size');
+    select.value = 'multi-label';
+    $('#custom-size').classList.add('hidden');
+
+    state.renderer.setMultiLabelDimensions(
+      state.multiLabel.labelWidth,
+      state.multiLabel.labelHeight,
+      state.multiLabel.labelsAcross,
+      state.multiLabel.gapMm
+    );
+    state.renderer.setActiveZone(state.activeZone);
+    updateZoneToolbar();
+  } else {
+    state.multiLabel = {
+      enabled: false,
+      labelWidth: 10,
+      labelHeight: 20,
+      labelsAcross: 4,
+      gapMm: 2,
+      cloneMode: true,
+    };
+    state.activeZone = 0;
+    state.renderer.disableMultiLabel();
+    $('#zone-toolbar').classList.add('hidden');
+
+    const sizeKey = state.labelSize.round
+      ? `${state.labelSize.width}mm Round`
+      : `${state.labelSize.width}x${state.labelSize.height}`;
+    const select = $('#label-size');
+    if (LABEL_SIZES[sizeKey]) {
+      select.value = sizeKey;
+      $('#custom-size').classList.add('hidden');
+    } else {
+      select.value = 'custom';
+      $('#custom-size').classList.remove('hidden');
+      $('#custom-width').value = state.labelSize.width;
+      $('#custom-height').value = state.labelSize.height;
+    }
+
+    state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
+  }
+
+  state.renderer.clearCache();
+  resetHistory();
+  updatePrintSize();
+  updateToolbarState();
+  updatePropertiesPanel();
+  detectTemplateFields();
+  render();
+}
+
+/**
  * Import design from file
  */
 function handleImportFile(file) {
@@ -5185,53 +5251,20 @@ function handleImportFile(file) {
         throw new Error('Invalid design file: missing elements');
       }
 
-      // Load the design
-      state.elements = data.elements;
-
-      // Load label size if present
-      if (data.labelSize) {
-        state.labelSize = data.labelSize;
-        // Update the label size dropdown
-        const sizeKey = data.labelSize.round
-          ? `${data.labelSize.width}mm Round`
-          : `${data.labelSize.width}x${data.labelSize.height}`;
-        const select = $('#label-size');
-        if (LABEL_SIZES[sizeKey]) {
-          select.value = sizeKey;
-          $('#custom-size').classList.add('hidden');
-        } else {
-          select.value = 'custom';
-          $('#custom-size').classList.remove('hidden');
-          $('#custom-width').value = data.labelSize.width;
-          $('#custom-height').value = data.labelSize.height;
-        }
-      }
-
-      // Load template data if present
-      if (data.templateData && Array.isArray(data.templateData)) {
-        state.templateData = data.templateData;
-        state.selectedRecords = data.templateData.map((_, i) => i); // Select all by default
-      }
-
-      // Clear selection and update renderer
-      state.selectedIds = [];
-      state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
-      state.renderer.clearCache();
-      resetHistory();
-      updatePrintSize();
-      updateToolbarState();
-      updatePropertiesPanel();
-
-      // Detect template fields from elements
-      detectTemplateFields();
-
-      render();
+      applyDesignToState(data);
       hideLoadDialog();
 
       const name = data.name || 'Imported design';
       state.currentDesignName = name;
       updateMobileLabelName();
-      setStatus(`Imported: ${name}`);
+
+      const templateInfo = state.templateData.length > 0
+        ? ` (${state.templateData.length} data records)`
+        : '';
+      const multiLabelInfo = state.multiLabel.enabled
+        ? ` [${state.multiLabel.labelsAcross}-up]`
+        : '';
+      setStatus(`Imported: ${name}${templateInfo}${multiLabelInfo}`);
     } catch (err) {
       logError(err, 'importDesign');
       setStatus(`Import failed: ${err.message}`);
@@ -5326,83 +5359,12 @@ function handleLoad(name) {
     return;
   }
 
-  state.elements = design.elements || [];
-  state.labelSize = design.labelSize || { width: 40, height: 30 };
-  state.selectedIds = [];
+  applyDesignToState(design);
+  hideLoadDialog();
 
-  // Restore template data if present
-  state.templateData = design.templateData || [];
-  state.selectedRecords = state.templateData.map((_, i) => i); // Select all by default
-
-  // Restore multi-label config if present
-  if (design.multiLabel && design.multiLabel.enabled) {
-    state.multiLabel = { ...design.multiLabel };
-    state.activeZone = 0;
-
-    // Update label size dropdown to show multi-label
-    const select = $('#label-size');
-    select.value = 'multi-label';
-    $('#custom-size').classList.add('hidden');
-
-    // Apply multi-label dimensions
-    state.renderer.setMultiLabelDimensions(
-      state.multiLabel.labelWidth,
-      state.multiLabel.labelHeight,
-      state.multiLabel.labelsAcross,
-      state.multiLabel.gapMm
-    );
-    state.renderer.setActiveZone(state.activeZone);
-    updateZoneToolbar();
-  } else {
-    // Reset multi-label state
-    state.multiLabel = {
-      enabled: false,
-      labelWidth: 10,
-      labelHeight: 20,
-      labelsAcross: 4,
-      gapMm: 2,
-      cloneMode: true,
-    };
-    state.activeZone = 0;
-    state.renderer.disableMultiLabel();
-    $('#zone-toolbar').classList.add('hidden');
-
-    // Update label size dropdown
-    const sizeKey = state.labelSize.round
-      ? `${state.labelSize.width}mm Round`
-      : `${state.labelSize.width}x${state.labelSize.height}`;
-    const select = $('#label-size');
-    if (LABEL_SIZES[sizeKey]) {
-      select.value = sizeKey;
-      $('#custom-size').classList.add('hidden');
-    } else {
-      select.value = 'custom';
-      $('#custom-size').classList.remove('hidden');
-      $('#custom-width').value = state.labelSize.width;
-      $('#custom-height').value = state.labelSize.height;
-    }
-
-    state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
-  }
-
-  state.renderer.clearCache();
-  resetHistory();
-  updatePrintSize();
-  updateToolbarState();
-  updatePropertiesPanel();
-
-  // Detect template fields from loaded elements
-  detectTemplateFields();
-
-  // Set current design name and update mobile display
   state.currentDesignName = name;
   updateMobileLabelName();
 
-  render();
-
-  hideLoadDialog();
-
-  // Show status with template info
   const templateInfo = state.templateData.length > 0
     ? ` (${state.templateData.length} data records)`
     : '';
